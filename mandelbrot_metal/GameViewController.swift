@@ -11,6 +11,7 @@ import Metal
 import QuartzCore
 import GLKit.GLKMath
 
+
 let ConstantBufferSize = 1024*1024
 var lastPoint: CGPoint = CGPoint(x: 0,y: 0)
 
@@ -64,38 +65,38 @@ class GameViewController: UIViewController {
         view.opaque = true
         view.backgroundColor = nil
         
-        commandQueue = device.newCommandQueue()
-        commandQueue.label = "main command queue"
-        
-        let defaultLibrary = device.newDefaultLibrary()
-        let fragmentProgram = defaultLibrary?.newFunctionWithName("passThroughFragment")
-        let vertexProgram = defaultLibrary?.newFunctionWithName("passThroughVertex")
-        
-        let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
-        pipelineStateDescriptor.vertexFunction = vertexProgram
-        pipelineStateDescriptor.fragmentFunction = fragmentProgram
-        pipelineStateDescriptor.colorAttachments[0].pixelFormat = .BGRA8Unorm
-        
-        var pipelineError : NSError?
-        pipelineState = device.newRenderPipelineStateWithDescriptor(pipelineStateDescriptor, error: &pipelineError)
-        if (pipelineState == nil) {
-            println("Failed to create pipeline state, error \(pipelineError)")
-        }
-        
-        vertexBuffer = device.newBufferWithLength(ConstantBufferSize, options: nil)
-        vertexBuffer.label = "vertices"
-        
-        let vertexTextureSize = vertexData.count * sizeofValue(vertexTextureData[0])
-        vertexTextureBuffer = device.newBufferWithBytes(vertexTextureData, length: vertexTextureSize, options: nil)
-        vertexTextureBuffer.label = "textureCoord"
+        if let device = device {
 
-        // scale, origin.x, origin.y, delta.x, delta.y
-        let fragmentBufferSize = sizeof(Float) * 5
-        fragmentBuffer = device.newBufferWithLength(fragmentBufferSize, options: nil)
-        fragmentBuffer.label = "mandelbrotData"
-        
-        timer = CADisplayLink(target: self, selector: Selector("renderLoop"))
-        timer.addToRunLoop(NSRunLoop.mainRunLoop(), forMode: NSDefaultRunLoopMode)
+            commandQueue = device.newCommandQueue()
+            commandQueue.label = "main command queue"
+
+            let defaultLibrary = device.newDefaultLibrary()
+            let fragmentProgram = defaultLibrary?.newFunctionWithName("passThroughFragment")
+            let vertexProgram = defaultLibrary?.newFunctionWithName("passThroughVertex")
+
+            let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
+            pipelineStateDescriptor.vertexFunction = vertexProgram
+            pipelineStateDescriptor.fragmentFunction = fragmentProgram
+            pipelineStateDescriptor.colorAttachments[0].pixelFormat = .BGRA8Unorm
+
+            do { pipelineState = try device.newRenderPipelineStateWithDescriptor(pipelineStateDescriptor) }
+            catch let e as NSError { print("Failed to create pipeline state, error \(e)") }
+
+            vertexBuffer = device.newBufferWithLength(ConstantBufferSize, options: MTLResourceOptions())
+            vertexBuffer.label = "vertices"
+
+            let vertexTextureSize = vertexData.count * sizeofValue(vertexTextureData[0])
+            vertexTextureBuffer = device.newBufferWithBytes(vertexTextureData, length: vertexTextureSize, options: MTLResourceOptions())
+            vertexTextureBuffer.label = "textureCoord"
+
+            // scale, origin.x, origin.y, delta.x, delta.y
+            let fragmentBufferSize = sizeof(Float) * 5
+            fragmentBuffer = device.newBufferWithLength(fragmentBufferSize, options: MTLResourceOptions())
+            fragmentBuffer.label = "mandelbrotData"
+
+            timer = CADisplayLink(target: self, selector: Selector("renderLoop"))
+            timer.addToRunLoop(NSRunLoop.mainRunLoop(), forMode: NSDefaultRunLoopMode)
+        }
     }
     
     override func viewDidLayoutSubviews() {
@@ -169,32 +170,33 @@ class GameViewController: UIViewController {
         let commandBuffer = commandQueue.commandBuffer()
         commandBuffer.label = "Frame command buffer"
         
-        let drawable = metalLayer.nextDrawable()
-        let renderPassDescriptor = MTLRenderPassDescriptor()
-        renderPassDescriptor.colorAttachments[0].texture = drawable.texture
-        renderPassDescriptor.colorAttachments[0].loadAction = .Clear
-        renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor(red: 0.65, green: 0.65, blue: 0.65, alpha: 1.0)
-        renderPassDescriptor.colorAttachments[0].storeAction = .Store
-        
-        let renderEncoder = commandBuffer.renderCommandEncoderWithDescriptor(renderPassDescriptor)!
-        renderEncoder.label = "render encoder"
-        
-        renderEncoder.pushDebugGroup("draw triangles to cover screen")
-        renderEncoder.setRenderPipelineState(pipelineState)
-        renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, atIndex: 0)
-        renderEncoder.setVertexBuffer(vertexTextureBuffer, offset: 0, atIndex: 1)
-        
-        var fragData:[Float] = [ mandel.zoom, mandel.getDelta().x, mandel.getDelta().y, mandel.getOrigin().x, mandel.getOrigin().y ]
-        memcpy(fragmentBuffer.contents(), &fragData, sizeof(Float) * 5)
-        renderEncoder.setFragmentBuffer(fragmentBuffer, offset: 0, atIndex: 0)
-        
-        renderEncoder.drawPrimitives(.Triangle, vertexStart: 0, vertexCount: 6, instanceCount: 1)
-        
-        renderEncoder.popDebugGroup()
-        renderEncoder.endEncoding()
-        
-        commandBuffer.presentDrawable(drawable)
-        commandBuffer.commit()
+        if let drawable = metalLayer.nextDrawable() {
+
+            let renderPassDescriptor = MTLRenderPassDescriptor()
+            renderPassDescriptor.colorAttachments[0].texture = drawable.texture
+            renderPassDescriptor.colorAttachments[0].loadAction = .Clear
+            renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColor(red: 0.65, green: 0.65, blue: 0.65, alpha: 1.0)
+            renderPassDescriptor.colorAttachments[0].storeAction = .Store
+
+            let renderEncoder = commandBuffer.renderCommandEncoderWithDescriptor(renderPassDescriptor)
+            renderEncoder.label = "render encoder"
+            renderEncoder.pushDebugGroup("draw triangles to cover screen")
+            renderEncoder.setRenderPipelineState(pipelineState)
+            renderEncoder.setVertexBuffer(vertexBuffer, offset: 0, atIndex: 0)
+            renderEncoder.setVertexBuffer(vertexTextureBuffer, offset: 0, atIndex: 1)
+
+            var fragData:[Float] = [ mandel.zoom, mandel.getDelta().x, mandel.getDelta().y, mandel.getOrigin().x, mandel.getOrigin().y ]
+            memcpy(fragmentBuffer.contents(), &fragData, sizeof(Float) * 5)
+            renderEncoder.setFragmentBuffer(fragmentBuffer, offset: 0, atIndex: 0)
+
+            renderEncoder.drawPrimitives(.Triangle, vertexStart: 0, vertexCount: 6, instanceCount: 1)
+
+            renderEncoder.popDebugGroup()
+            renderEncoder.endEncoding()
+
+            commandBuffer.presentDrawable(drawable)
+            commandBuffer.commit()
+        }
     }
     
     func update() {

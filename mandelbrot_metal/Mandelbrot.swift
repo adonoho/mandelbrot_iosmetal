@@ -25,8 +25,8 @@ class Mandelbrot {
     let resolution:CGPoint = CGPoint(x: 320, y: 480)
     
     func setOrigin(dx: Float, dy: Float) {
-        var deltax: Float = -dx/Float(resolution.x)
-        var deltay: Float =  dy/Float(resolution.y)
+        let deltax: Float = -dx/Float(resolution.x)
+        let deltay: Float =  dy/Float(resolution.y)
         
         origin.x = origin.x + deltax / zoom
         origin.y = origin.y + deltay / zoom

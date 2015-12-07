@@ -162,6 +162,7 @@
 		1FD891871B3B2965001583FD /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				LastSwiftUpdateCheck = 0710;
 				LastUpgradeCheck = 0630;
 				ORGANIZATIONNAME = "Marcio Cabral";
 				TargetAttributes = {
@@ -419,6 +420,7 @@
 				1FD891B21B3B2966001583FD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		1FD891B31B3B2966001583FD /* Build configuration list for PBXNativeTarget "mandelbrot_metalTests" */ = {
 			isa = XCConfigurationList;
@@ -427,6 +429,7 @@
 				1FD891B51B3B2966001583FD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
